@@ -22,9 +22,20 @@ const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
 type Env = Record<string, string | undefined>;
 type ReadFile = (path: string) => string;
 
-/** Minimal .env reader: KEY=VALUE lines, optional `export`, optional quotes, # comments. */
+/**
+ * Minimal .env reader: KEY=VALUE lines, optional `export`, optional quotes, # comments.
+ * Like Docker Compose, unquoted and double-quoted values expand ${NAME}, ${NAME:-default}
+ * and $NAME from keys earlier in the same file. Nod's self-host .env uses this:
+ * NOD_PUBLIC_URL=http://localhost:${PORT}
+ */
 export function parseEnvFile(content: string): Record<string, string> {
   const out: Record<string, string> = {};
+  const expand = (value: string) =>
+    value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-([^}]*))?\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (_m, braced, fallback, bare) => {
+      const name = (braced ?? bare) as string;
+      const found = out[name];
+      return found !== undefined && found !== '' ? found : ((fallback as string | undefined) ?? '');
+    });
   for (const raw of content.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith('#')) continue;
@@ -32,10 +43,12 @@ export function parseEnvFile(content: string): Record<string, string> {
     if (!match) continue;
     let value = match[2]!.trim();
     const quote = value[0];
-    if ((quote === '"' || quote === "'") && value.endsWith(quote) && value.length >= 2) {
+    if (quote === "'" && value.endsWith(quote) && value.length >= 2) {
       value = value.slice(1, -1);
+    } else if (quote === '"' && value.endsWith(quote) && value.length >= 2) {
+      value = expand(value.slice(1, -1));
     } else {
-      value = value.replace(/\s+#.*$/, '');
+      value = expand(value.replace(/\s+#.*$/, ''));
     }
     out[match[1]!] = value;
   }

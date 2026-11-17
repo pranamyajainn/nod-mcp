@@ -104,7 +104,36 @@ describe('safety rules 6 and 7: tag and send flag', () => {
   });
 });
 
+describe("Nod's generated self-host .env", () => {
+  // Same layout setup.sh writes (from .env.example), with fake secrets.
+  const generated = [
+    '# Nod self-host settings',
+    'PORT=4310',
+    'NOD_BIND_ADDRESS=127.0.0.1',
+    'NOD_PUBLIC_URL=http://localhost:${PORT}',
+    'COMPOSE_PROJECT_NAME=nod-0123456789abcdef',
+    `NOD_AUTH_TOKEN=${'ab'.repeat(32)}`,
+    'NOD_VAULT_KEY=c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0MTI=',
+    `NOD_POSTGRES_PASSWORD=${'cd'.repeat(32)}`,
+  ].join('\n');
+
+  it('expands ${PORT} in NOD_PUBLIC_URL and uses http://localhost:4310', () => {
+    const config = loadConfig({ NOD_ENV_FILE: '/nod/.env' }, files({ '/nod/.env': generated }));
+    expect(config.baseUrl.origin).toBe('http://localhost:4310');
+    expect(config.token).toBe('ab'.repeat(32));
+  });
+
+  it('follows a changed PORT', () => {
+    const config = loadConfig({ NOD_ENV_FILE: '/nod/.env' }, files({ '/nod/.env': generated.replace('PORT=4310', 'PORT=4999') }));
+    expect(config.baseUrl.origin).toBe('http://localhost:4999');
+  });
+});
+
 describe('env file parsing', () => {
+  it('expands ${NAME}, ${NAME:-default} and $NAME, but not in single quotes', () => {
+    expect(parseEnvFile(`A=x\nB=\${A}-\${MISSING:-d}-$A\nC='\${A}'\nD="\${A}"`)).toEqual({ A: 'x', B: 'x-d-x', C: '${A}', D: 'x' });
+  });
+
   it('reads quotes, export and comments', () => {
     expect(parseEnvFile(`export A=1\nB='two words'\nC="x" \nD=val # note\n#E=no`)).toEqual({
       A: '1',
