@@ -217,7 +217,7 @@ Errors: 400 (validation), 409 (conversation reset, or "This message ID is alread
    When refusing, return a clear result instead: *"Waiting on you in the Nod app: <approval title or reason>. Approve or decline it there, then try again."*
 5. **Refuse text that looks like a code:**
    - text that, after removing spaces, dashes, dots, `!` and one leading `+`, is only 3–10 digits. (3017a94: measured after removing spaces, because Nod accepts "1 2 3 4 5 6" as a code.)
-   - text with a standalone 3–8 digit number near words like `code`, `otp`, `cvv`, `cvc`, `pin`, `passcode`, `código`, `security code` or `verification`
+   - text with a standalone number of 3–8 digits (groups split by single spaces or dashes count together, so "99 88 77" counts) within 40 characters of words like `code`, `otp`, `cvv`, `cvc`, `pin`, `passcode`, `código`, `security code` or `verification`
 
    Keep the check simple, write it down and test it.
 6. **Visible tag.** Every outgoing message starts with a tag, by default `[via Claude] `, which can be changed with `NOD_MCP_TAG`. **It can't be empty.** Startup fails if it's set to empty.

@@ -43,6 +43,9 @@ const ALLOWLIST: ReadonlyArray<{ method: Method; path: RegExp }> = [
 ];
 
 /** The only keys a POST /api/messages body may ever have. (Safety rule 3) */
+/** Nod's limit for message text (src/shared/message-limits.ts). */
+export const MESSAGE_TEXT_LIMIT = 100_000;
+
 export const MESSAGE_BODY_KEYS = ['text', 'clientMessageId', 'replyToMessageId', 'threadId'] as const;
 
 export function isAllowed(method: string, path: string): boolean {
@@ -151,18 +154,6 @@ export class NodClient {
     }
   }
 
-  /** Open the server-sent event stream. Used only as a wake-up signal by nod_wait. */
-  async events(signal: AbortSignal): Promise<Response> {
-    const url = this.url('GET', '/api/events');
-    try {
-      const response = await this.fetchImpl(url, { method: 'GET', headers: this.headers(false), signal });
-      if (!response.ok) throw await this.httpError(response);
-      return response;
-    } catch (error) {
-      throw this.networkError(error);
-    }
-  }
-
   private url(method: Method, path: string, query?: Record<string, string>): URL {
     if (!isAllowed(method, path)) throw new NodError(`Blocked: ${method} ${path} is not on the nod-mcp allowlist.`, 'blocked');
     const url = new URL(path, this.config.baseUrl);
@@ -172,12 +163,12 @@ export class NodClient {
     return url;
   }
 
-  private headers(json: boolean): Record<string, string> {
+  private headers(): Record<string, string> {
     // No Origin header (Nod checks it if present). Host comes from the URL.
     return {
       Authorization: `Bearer ${this.config.token}`,
-      Accept: json ? 'application/json' : 'text/event-stream',
-      ...(json ? { 'Content-Type': 'application/json' } : {}),
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
     };
   }
 
@@ -196,7 +187,7 @@ export class NodClient {
     try {
       response = await this.fetchImpl(url, {
         method,
-        headers: this.headers(true),
+        headers: this.headers(),
         body: method === 'POST' ? JSON.stringify(options.body ?? {}) : undefined,
         signal: AbortSignal.timeout(this.timeoutMs),
         redirect: 'error',

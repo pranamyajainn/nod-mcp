@@ -8,9 +8,11 @@ import { registerGetTask } from './tools/get-task.js';
 import { registerListTasks } from './tools/list-tasks.js';
 import { registerReadMessages } from './tools/read-messages.js';
 import { registerSearchMessages } from './tools/search-messages.js';
+import { registerSend } from './tools/send.js';
 import { registerStatus } from './tools/status.js';
 import { registerStopAll } from './tools/stop-all.js';
 import { registerStopTask } from './tools/stop-task.js';
+import { registerWait } from './tools/wait.js';
 
 export const VERSION = '0.1.0';
 
@@ -32,6 +34,8 @@ export function createServer(config: Config, options: ServerOptions = {}) {
   registerGetTask(server, ctx);
   registerReadMessages(server, ctx);
   registerSearchMessages(server, ctx);
+  registerSend(server, ctx);
+  registerWait(server, ctx);
   registerStopTask(server, ctx);
   registerStopAll(server, ctx);
   return { server, ctx };
